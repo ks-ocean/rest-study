@@ -1,4 +1,4 @@
-# Rest-Study
+# Rest-Study nomidev
 
 [AWS上で構築するRESTfulアプリ勉強会～Web開発ワークショップ～【第1回】 - connpass](http://aws-rest-todo.connpass.com/event/10444/)
 
