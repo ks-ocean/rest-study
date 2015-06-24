@@ -1,13 +1,27 @@
 <?php
-
 App::uses('AppController', 'Controller');
 App::uses('BlowfishPasswordHasher', 'Controller/Component/Auth');
 
 class UsersController extends AppController {
+	private $fields = array (
+		'User.id',
+		'User.username',
+		'User.name'
+	);
+	public function index() {
+		try {
+			$res = $this->User->find('all', array('fields' => $this->fields));
+			$this->set(compact('res'));
+			$this->set('_serialize', 'res');
+			$this->logSql();
+		} catch ( Exception $e ) {
+			$this->logError($e, LOG_DEBUG);
+		}
+	}
 
 	public function login() {
 		$user = $this->Auth->user();
-		$res = array();
+		$res = array ();
 		if ($user) {
 			if ($user['username'] === $this->request->data['username']) {
 				$res['User'] = $user;
@@ -30,26 +44,26 @@ class UsersController extends AppController {
 		$this->set('_serialize', 'res');
 	}
 
-	public function loggedIn(){
+	public function loggedIn() {
 		$user = $this->Auth->user();
 		if ($user) {
 			$res['User'] = $user;
 			$res['message'] = "ログイン済みです";
 			$this->set(compact('res'));
 			$this->set('_serialize', 'res');
-		}else{
+		} else {
 			throw new UnauthorizedException();
 		}
 	}
 
 	public function logout() {
 		$user = $this->Auth->user();
-		$res = array();
+		$res = array ();
 		if ($user !== null) {
 			$this->Auth->logout();
 			$res['message'] = "ログアウトしました。";
 		} else {
- 			$res['message'] = "ログインしていません。";
+			$res['message'] = "ログインしていません。";
 		}
 		$this->set(compact('res'));
 		$this->set('_serialize', 'res');
@@ -62,14 +76,13 @@ class UsersController extends AppController {
 			$data['password'] = $passwordHasher->hash($data['password']);
 		}
 		$res = $this->User->save($data);
-		if($res){
+		if ($res) {
 			unset($res['User']['password']);
 			$res['message'] = "登録しました。ログインできます！";
-		}else{
+		} else {
 			$res['message'] = "登録に失敗しました。";
 		}
 		$this->set(compact('res'));
 		$this->set('_serialize', 'res');
 	}
-
 }

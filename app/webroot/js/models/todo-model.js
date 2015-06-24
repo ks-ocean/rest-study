@@ -6,7 +6,13 @@ define(function() {
 			//モデルをパース
 			console.log("モデルをパース");
 			console.log(response);
-			return response.TodoList;
+			var parsed = response.TodoList;
+			if(response.Owner){
+			  parsed.assignee = response.Assignee.id;
+			  parsed.Owner = response.Owner;
+			  parsed.Assignee = response.Assignee;
+			}
+			return parsed;
 		},
 		toggle : function() {
 			this.set('status', this.get("status") === '1' ? '0' : '1');

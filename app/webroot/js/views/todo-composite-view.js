@@ -11,15 +11,32 @@ define(function(require) {
 
 		ui : {
 			addTodo : '#addTodo',
-			newTodo : '#new-todo'
+			newTodo : '#new-todo',
+			userList : '#user-list'
 		},
 
 		events : {
 			'click @ui.addTodo' : 'onCreateTodo',
 		},
 
-		initialize: function(){
+		initialize: function(options){
 			_.bindAll( this, 'onCreatedSuccess' );
+			this.userList = options.userList;
+		},
+
+		onRender : function() {
+			//ユーザ一覧を表示
+			this.showUserList(this.ui.userList, this.userList);
+		},
+		
+		//ユーザ一覧を表示
+		showUserList : function($list, userList){
+			$.each(userList, function(index, userModel) {
+				$list.append(
+						"<option value='" 
+						+ userModel.attributes.id + "'>"
+						+ userModel.attributes.name + "</option>");
+			});
 		},
 
 		onCreateTodo : function() {
@@ -33,7 +50,8 @@ define(function(require) {
 		newAttributes : function() {
 			return {
 				todo : this.ui.newTodo.val().trim(),
-				status : 0
+				status : 0,
+				assignee : this.ui.userList.val()
 			};
 		},
 

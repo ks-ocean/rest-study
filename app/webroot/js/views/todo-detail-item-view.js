@@ -1,5 +1,5 @@
 //詳細ビュー
-define(function() {
+define(function(require) {
 	var TodoDetailItemView = Marionette.ItemView.extend({
 
 		//テンプレート
@@ -8,7 +8,8 @@ define(function() {
 		ui : {
 			todoStatus   : '#edit-todo',
 			updateButton : '#updateTodo',
-			cancelButton : '#updateCancel'
+			cancelButton : '#updateCancel',
+			userList     : '#user-list'
 		},
 
 		//DOMイベントハンドラ設定
@@ -20,16 +21,36 @@ define(function() {
 		},
 
 		//初期化
-		initialize: function(){
-			_.bindAll( this, 'onSaveSuccess' );
+		initialize : function(options) {
+			_.bindAll(this, 'onSaveSuccess');
+			this.userList = options.userList;
+		},
+
+		onRender : function() {
+			//ユーザ一覧を表示
+			this.showUserList(this.ui.userList, this.userList);
+			//担当者を選択状態にする
+			this.ui.userList.val(this.model.attributes.assignee);
+		},
+		
+		//ユーザ一覧を表示
+		showUserList : function($list, userList){
+			$.each(userList, function(index, userModel) {
+				$list.append(
+						"<option value='" 
+						+ userModel.attributes.id + "'>"
+						+ userModel.attributes.name + "</option>");
+			});
 		},
 
 		//更新ボタンクリックのイベントハンドラ
 		onUpdateClick : function() {
 			//テキストボックスから文字を取得
-			var todoString = this.ui.todoStatus.val();
+			var todoString = this.ui.todoStatus.val();  // Todo
+			var assigneeId = this.ui.userList.val();	// 担当者
 			this.model.save({
-				todo : todoString
+				todo : todoString,
+				assignee : assigneeId
 			}, {
 				silent : true,
 				success : this.onSaveSuccess,

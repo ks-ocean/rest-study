@@ -56,4 +56,65 @@ class AppController extends Controller {
 		$this->Auth->allow();
 	}
 
+	public function logError($er){
+	    if (Configure::read('debug') < 2) {
+	    	return;
+	    }
+	    $log = array();
+	    $log['message'] = $er->getMessage();
+	    $log['file'] = $er->getFile();
+	    $log['line'] = $er->getLine();
+	    $log['code'] = $er->getCode();
+	    $log['queryString'] = $er->queryString;
+	    $this->log($log, LOG_DEBUG);
+	}
+
+	public function logSql(){
+	    if (!class_exists('ConnectionManager') || Configure::read('debug') < 2) {
+	    	return;
+	    }
+	    $sources = ConnectionManager::sourceList();
+
+	    $sqlLogs = array();
+	    foreach ($sources as $source){
+		    $db = ConnectionManager::getDataSource($source);
+		    if (!method_exists($db, 'getLog')){
+		    	continue;
+		    }
+		    $sqlLogs[$source] = $db->getLog();
+	    }
+
+	    if (empty($sqlLogs)){
+	        return;
+	    }
+	    foreach ($sqlLogs as $source => $logInfo){
+	    	$text = $logInfo['count'] > 1 ? 'queries' : 'query';
+    		foreach ($logInfo['log'] as $k => $i){
+    			$i += array('error' => '');
+    			if (!empty($i['params']) && is_array($i['params'])) {
+    				$bindParam = $bindType = null;
+    				if (preg_match('/.+ :.+/', $i['query'])) {
+    					$bindType = true;
+    				}
+    				foreach ($i['params'] as $bindKey => $bindVal) {
+    					if ($bindType === true) {
+    						$bindParam .= h($bindKey) . " => " . h($bindVal) . ", ";
+    					} else {
+    						$bindParam .= h($bindVal) . ", ";
+    					}
+    				}
+    				$i['query'] .= " , params[ " . rtrim($bindParam, ', ') . " ]";
+    			}
+    			$log = array(
+    				'No.' => ($k + 1),
+    				'query' => h($i['query']),
+    				'error' => $i['error'],
+    				'affected' => $i['affected'],
+    				'numRows' => $i['numRows'],
+    				'took' => $i['took']
+				);
+    			$this->log($log, LOG_DEBUG);
+    		}
+	    }
+	}
 }
