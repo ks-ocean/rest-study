@@ -14,13 +14,13 @@ define(function(require){
 
 		onRender : function() {
 			this.userCollection = new UserCollection();
-			this.listenTo(this.userCollection, 'reset', this.onLoadUsers, this);
+			this.listenToOnce(this.userCollection, 'reset', this.onLoadUsers, this);
 			this.userCollection.fetch({reset : true});
 		},
 
 		onLoadUsers : function(userCollection) {
 			var todoCollection = new TodoCollection();
-			this.listenTo(todoCollection , 'reset', this.showTodoList, this);
+			this.listenToOnce(todoCollection , 'reset', this.showTodoList, this);
 			todoCollection.fetch({reset : true});
 		},
 

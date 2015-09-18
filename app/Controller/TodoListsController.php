@@ -70,17 +70,111 @@ class TodoListsController extends AppController {
 		$this->set('_serialize', 'response');
 	}
 
-	//レスポンスを編集
-	private function editResponse($res){
-		if($res){
+	public function download() {
+		//id順で一覧取得
+		$query = array (
+			'fields' => $this->fields,
+			'order' => "TodoList.id"
+		);
+		$res = $this->TodoList->find('all', $query);
+		// CSVファイルに整形
+		if ($res && is_array($res)) {
+			$fp = fopen('php://temp', 'w+');
+			//タイトル
+			$fields = array('id', 'todo', 'status', 'owner' ,'assignee');
+			fputcsv($fp, $fields);
+			//データ
+			foreach ( $res as $record ) {
+			    $fields = array();
+			    $fields[] = $record['TodoList']['id'];
+			    $fields[] = $record['TodoList']['todo'];
+			    $fields[] = $record['TodoList']['status'];
+			    $fields[] = $record['Owner']['name'];
+			    $fields[] = $record['Assignee']['name'];
+				fputcsv($fp, $fields);
+			}
+			//ポインタを先頭に
+			rewind($fp);
+			//読み込み
+			$content = stream_get_contents($fp);
+			//このままだとエンコーディングはUTF-8, 改行コードはLFとなり、
+			//Excelでひらけないので、開きたい場合は下記コメントインしてエンコーディングをSJIS-winにする
+			//$content =  mb_convert_encoding($content, 'sjis-win', 'UTF-8');
+			fclose($fp);
+			//Viewを使用しない
+			$this->autoRender = false;
+			//ダウンロードファイル名を設定
+			$this->response->download('todo.csv');
+			$this->response->type('csv');
+			$this->response->body($content);
+		}
+	}
+
+	public function upload() {
+		$files = $this->request->params['form'];
+		$owner = $this->Auth->user()['id'];
+		$numTodos = 0;
+		foreach ( $files as $file ) {
+			$fileName = $file['name'];
+			$filePath = $file['tmp_name'];
+			$todos = file($filePath, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+			$assignee = $owner;
+			$errors = array ();
+			$lineNo = 1;
+			foreach ( $todos as $todo ) {
+				$data = array ();
+				$data['todo'] = $todo;
+				$data['status'] = 0;
+				$data['owner'] = $owner;
+				$data['assignee'] = $assignee;
+				$res = $this->TodoList->save($data);
+				if ($res) {
+					$numTodos++;
+				} else {
+					if (count($this->TodoList->validationErrors) > 0) {
+						foreach ( $this->TodoList->validationErrors as $validationErrorsOfLine ) {
+							$title = 'file:' . $fileName . ' - line: ' . $lineNo . ': ';
+							foreach ( $validationErrorsOfLine as $validationError ) {
+								$errors[] = array (
+									$title . $validationError
+								);
+							}
+						}
+					}
+				}
+				$this->TodoList->create();
+				$lineNo++;
+			}
+		}
+		if (count($errors) > 0) {
+			$this->TodoList->validationErrors = $errors;
+			$response = $this->editResponse(false);
+			array_unshift($response['errors'], array (
+				'以下のエラーが発生しました。'
+			));
+			if ($numTodos > 0) {
+				array_unshift($response['errors'], array (
+					$numTodos . '件のTODOを登録しました。'
+				));
+			}
+		} else {
+			$response = $numTodos . '件のTODOを登録しました。';
+		}
+		$this->set(compact('response'));
+		$this->set('_serialize', 'response');
+	}
+
+		// レスポンスを編集
+	private function editResponse($res) {
+		if ($res) {
 			$response = $res;
-		}else{
-			$this->setStatusValidationError();
-			$respnse = array();
-			if(count($this->TodoList->validationErrors) > 0){
-				$response = $this->editErrors($this->TodoList->validationErrors);
-			}else{
-				$response = $this->editErrors('エラーが発生しました。');
+		} else {
+			$this->setStatusValidationerror();
+			$respnse = array ();
+			if (count($this->TodoList->validationErrors) > 0) {
+				$response = $this->editerrors($this->TodoList->validationErrors);
+			} else {
+				$response = $this->editerrors('エラーが発生しました。');
 			}
 		}
 		return $response;
