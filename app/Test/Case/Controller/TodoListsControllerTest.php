@@ -7,89 +7,118 @@ class TodoListsControllerTest extends ControllerTestCase {
 		'app.user'
 	);
 
-	private function generateTestTarget($controller = 'TodoLists', $mockMethods = null, $mockModels = null) {
-		$mocks = array ();
-		if (isset($mockMethods)) {
-			$mocks['methods'] = $mockMethods;
-		}
-		if (isset($mockModels)) {
-			$mocks['models'] = $mockModels;
-		}
-		$mocks['components'] = array (
-			'Auth' => array (
-				'user'
+	/**
+	 * 準備
+	 * @return Controller
+	 */
+	public function setUp() {
+		parent::setUp();
+		$mocks = array (
+			'methods' => array (
+				'getUploadFileParams'
+			),
+			'components' => array (
+				'Auth' => array (
+					'user'
+				)
 			)
 		);
-
-		$controller = $this->generate($controller, $mocks);
+		//TodoListsControllerを生成
+		$controller = $this->generate('TodoLists', $mocks);
+		//Authコンポーネントのuserメソッドをスタブにする
+		//(TodoListsControllerのgetUploadFileParamsメソッドのスタブは各テストで設定する)
 		$loginUser = array (
-			"id" => 1000,
+			"id" => "1000",
 			"username" => "yamada",
 			"name" => "yamada"
 		);
-		$controller->Auth->staticExpects($this->any())->method('user')->will($this->returnValue($loginUser));
-		return $controller;
+		$controller->Auth->staticExpects($this->any())
+			->method('user')
+			->will($this->returnValue($loginUser));
+		$this->controller = $controller;
 	}
 
+	/**
+	 * index関数のテスト
+	 */
 	public function testIndex() {
-		$this->generateTestTarget();
+		$result = $this->testAction('/todo_lists.json', array (
+			'method' => 'get'
+		));
+		$result = $this->vars['res'];
+		$expected = array (
+			array (
+				"TodoList" => array (
+					"id" => "1000",
+					"todo" => "牛乳を買う",
+					"status" => "1",
+					"owned" => true,
+					"assigned" => true
+				),
+				"Owner" => array (
+					"id" => "1000",
+					"name" => "山田太郎"
+				),
+				"Assignee" => array (
+					"id" => "1000",
+					"name" => "山田太郎"
+				)
+			)
+		);
+		$this->assertEquals($expected, $result);
+	}
+
+	/**
+	 * view関数のテスト
+	 */
+	public function testView() {
 		$result = $this->testAction('/todo_lists/1000.json', array (
 			'method' => 'get'
 		));
 		$result = $this->vars['res'];
 		$expected = array (
 			"TodoList" => array (
-				"id" => 1000,
+				"id" => "1000",
 				"todo" => "牛乳を買う",
 				"status" => "1"
 			),
 			"Owner" => array (
-				"id" => 1000,
+				"id" => "1000",
 				"name" => "山田太郎"
 			),
 			"Assignee" => array (
-				"id" => 1000,
+				"id" => "1000",
 				"name" => "山田太郎"
 			)
 		);
 		$this->assertEquals($expected, $result);
 	}
 
+	/**
+	 * upload関数のテスト
+	 * アップロードファイル1つ、2件を正常登録
+	 */
 	public function testUploadOKFile() {
 		//一時保存されるアップロードファイル
 		$postFileName = 'testUploadOKFile.txt';
 		$tmpFileName = tempnam('/tmp', $postFileName);
+		//アップロードされてきた体でファイルを作成しておく
 		file_put_contents($tmpFileName, array (
 			"ほげ\n",
 			"12345\n"
 		));
 		//POSTされるフォームデータ
 		$uploadFormData = array (
-			'name' => $postFileName,
-			'tmp_name' => $tmpFileName
+			array(
+				'name' => $postFileName,
+				'tmp_name' => $tmpFileName
+			),
 		);
 
-		//フォームデータ取得関数をモックにする
-		$methods = array (
-			'getUploadFileParams'
-		);
-		//担当者の存在チェックをモックにする
-		$models = array (
-			'TodoList' => array (
-				'existsUser'
-			)
-		);
-
-		//TodoListControllerを生成
-		$controller = $this->generateTestTarget('TodoLists', $methods, $models);
-		//担当者の存在チェック(モック)は常にtrueを返すようにする
-		$controller->TodoList->expects($this->any())
-			->method('existsUser')
-			->will($this->returnValue(true));
-		//フォームデータ取得関数(モック)は、上で用意したフォームデータを返すようにする
-		$controller->expects($this->any())
+		//フォームデータ取得関数は、上で用意したフォームデータを返すようにスタブにする
+		$this->controller->expects($this->any())
 			->method('getUploadFileParams')
-			->will($this->returnValue(array($uploadFormData)));
+			->will($this->returnValue($uploadFormData));
 		//テスト実行
 		$result = $this->testAction('/todo_lists/upload.json', array (
 			'method' => 'post'
@@ -100,22 +129,27 @@ class TodoListsControllerTest extends ControllerTestCase {
 		$this->assertEquals($expected, $result);
 	}
 
+	/**
+	 * upload関数のテスト
+	 * アップロードファイル2つ、3件を正常登録, 1件はバリデーションエラー
+	 */
 	public function testUploadOKandNGFile() {
 		//一時保存されるアップロードファイル1
 		$postFileName1 = 'testUploadOKandNGFile1.txt';
 		$tmpFileName1 = tempnam('/tmp', $postFileName1);
+		//アップロードされてきた体でファイルを作成しておく
 		file_put_contents($tmpFileName1, array (
 			"ほげ\n",
 			"12345\n"
 		));
-		//一時保存されるアップロードファイル1
+		//一時保存されるアップロードファイル2
 		$postFileName2 = 'testUploadOKandNGFile2.txt';
 		$tmpFileName2 = tempnam('/tmp', $postFileName2);
+		//アップロードされてきた体でファイルを作成しておく
 		file_put_contents($tmpFileName2, array (
 			"ふが\n",
 			"12345\n" //これは重複でエラーになる
 		));
-
 		//POSTされるフォームデータ
 		$uploadFormData = array (
 			array(
@@ -128,24 +162,9 @@ class TodoListsControllerTest extends ControllerTestCase {
 			),
 		);
 
-		//フォームデータ取得関数をモックにする
-		$methods = array (
-			'getUploadFileParams'
-		);
-		//担当者の存在チェックは除外
-		$models = array (
-			'TodoList' => array (
-				'existsUser'
-			)
-		);
 		//TodoListControllerを生成
-		$controller = $this->generateTestTarget('TodoLists', $methods, $models);
-		//担当者の存在チェック(モック)は常にtrueを返すようにする
-		$controller->TodoList->expects($this->any())
-			->method('existsUser')
-			->will($this->returnValue(true));
-		//フォームデータ取得関数(モック)は、上で用意したフォームデータを返すようにする
-		$controller->expects($this->any())
+		//フォームデータ取得関数は、上で用意したフォームデータを返すようにスタブする
+		$this->controller->expects($this->any())
 			->method('getUploadFileParams')
 			->will($this->returnValue($uploadFormData));
 		//テスト実行
